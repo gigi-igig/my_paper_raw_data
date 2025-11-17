@@ -9,7 +9,6 @@ matplotlib.use("Agg")  # 非互動式後端
 import pandas as pd
 from tqdm import tqdm
 from tool import extract_target_id, dropnan_sort, normalize_by_group
-from config import detrend_methods, interval_list, no_interval_detrend, cut_tail_len
 from datetime import datetime
 
 # -------------------------------
@@ -43,6 +42,7 @@ def main(version_dir_path, data_dir, data_size=1000):
 
         results.append({
             "TIC ID": target_id,
+            "raw_flux_std":np.nanstd(flux),
             "org_flux_std": np.nanstd(flux_norm),
             "points_num": len(flux_norm)
         })
@@ -55,11 +55,11 @@ def main(version_dir_path, data_dir, data_size=1000):
 
 if __name__ == "__main__":
     version_dir_path = "exp1"
-    data_dir = "/data2/gigicheng/TOI_org/data"
+    data_dir = "/data2/gigicheng/data_21_lc/"
     start_time = datetime.now()
     print(f"開始時間: {start_time}")
 
-    main(version_dir_path, data_dir, data_size=1000, pic_batch=10)
+    main(version_dir_path, data_dir, data_size=-1)
     end_time = datetime.now()
     print(f"完成時間: {end_time}")
     print(f"總共耗時: {end_time - start_time}")
