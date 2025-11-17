@@ -1,8 +1,9 @@
 # ---------------------------
 # 參數設定
 # ---------------------------
-interval_list = [100, 350, 750, 1500, 4500]
-detrend_methods = ["org", "cubic_sample", "linear", "cubic_sample_BIC", "linear_BIC", "only_BIC"]#, "wavelet"]
+data_size = 1000
+interval_list = [4500]
+detrend_methods = ["org", "cubic_sample"]
 colors = {
     "cubic_sample": "#1f77b4",
     "cubic_sample_BIC": "#ff7f0e",
