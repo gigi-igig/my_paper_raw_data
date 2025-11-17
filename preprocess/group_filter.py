@@ -14,7 +14,7 @@ from datetime import datetime
 # -------------------------------
 # II. 主程式
 # -------------------------------
-def main(version_dir_path, data_dir, data_size=1000):
+def main(version_dir_path, data_dir, output_dir, data_size=1000):
     """
     cut_tail_len: int, 尾端要裁掉的點數，0 表示不裁
     """
@@ -35,7 +35,7 @@ def main(version_dir_path, data_dir, data_size=1000):
             continue
         time, flux_norm = normalize_by_group(time, flux, dt_threshold=400/1440, flux_gap_sigma=None)
         # 儲存 CSV
-        combo_dir = f"/data2/gigicheng/data_21/raw_data/group_norm/{version_dir_path}/"
+        combo_dir = f"{output_dir}/{version_dir_path}/"
         os.makedirs(combo_dir, exist_ok=True)
         csv_path = os.path.join(combo_dir, f"{target_id}_group_norm.csv")
         pd.DataFrame({"TIME": time, "FLUX": flux_norm}).to_csv(csv_path, index=False)
@@ -49,17 +49,18 @@ def main(version_dir_path, data_dir, data_size=1000):
 
     # 儲存 summary CSV
     summary_df = pd.DataFrame(results)
-    summary_df.to_csv(f"/data2/gigicheng/data_21/raw_data/group_norm/group_summary_{version_dir_path}.csv", index=False)
+    summary_df.to_csv(f"{output_dir}/group_summary_{version_dir_path}.csv", index=False)
     print("\n所有 FITS 檔案前處理完成！統計 CSV 已生成。")
 
 
 if __name__ == "__main__":
     version_dir_path = "exp1"
     data_dir = "/data2/gigicheng/data_21_lc/"
+    output_dir = "/data2/gigicheng/data_21/raw_data/group_norm"
     start_time = datetime.now()
     print(f"開始時間: {start_time}")
 
-    main(version_dir_path, data_dir, data_size=-1)
+    main(version_dir_path, data_dir, output_dir, data_size=-1)
     end_time = datetime.now()
     print(f"完成時間: {end_time}")
     print(f"總共耗時: {end_time - start_time}")

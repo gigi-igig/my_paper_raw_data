@@ -31,15 +31,6 @@ def main(dir_path, data_dir, data_size=1000, pic_batch=50, detrend_methods=[], c
     results = []
 
     for idx, fname in enumerate(tqdm(fits_files)):
-        file_path = os.path.join(data_dir, fname)
-        target_id = extract_target_id(fname)
-        with fits.open(file_path) as hdul:
-            time, flux = hdul[1].data['TIME'], hdul[1].data['PDCSAP_FLUX']
-        time, flux = dropnan_sort(time, flux)
-        time = time - np.nanmin(time)
-        if len(time) < 2880:
-            continue
-        time, flux_norm = normalize_by_group(time, flux, dt_threshold=400/1440, flux_gap_sigma=None)
 
         flux_detrended_dict = {}
         for detrend_method in detrend_methods:
