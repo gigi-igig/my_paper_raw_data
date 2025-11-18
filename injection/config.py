@@ -1,0 +1,1 @@
+detrend_methods = ["org", "cubic_sample"]
