@@ -7,7 +7,7 @@ from tensorflow.keras.callbacks import Callback, CSVLogger
 from model import CNNClassifier
 
 save_root = "/data2/gigicheng/data_21/raw_data/inject_results"
-detrend_methods = ["median_filter", "savgol", "polyfit"]
+detrend_methods = ["org", "cubic_sample"]
 
 class StableAccuracyCheckpoint(Callback):
     """
@@ -50,9 +50,9 @@ for detrend_way in detrend_methods:
     print(f"\n=== Training for detrend_way: {detrend_way} ===")
     data_dir = f"{save_root}/{detrend_way}/data"
 
-    with open(f"{data_dir}/X_{detrend_way}.pkl", "rb") as f:
+    with open(f"{data_dir}/X.pkl", "rb") as f:
         X = pickle.load(f)
-    with open(f"{data_dir}/y_{detrend_way}.pkl", "rb") as f:
+    with open(f"{data_dir}/y.pkl", "rb") as f:
         y = pickle.load(f)
 
     # 切分 Test

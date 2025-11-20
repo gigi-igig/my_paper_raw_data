@@ -13,8 +13,8 @@ from config import detrend_methods
 def main(tic_ids_str, detrend_way, preprocess_root, save_root):
 
     # 每個 detrend_way 自己的資料夾
-    save_dir = f"{save_root}/{detrend_way}/data"
-    os.makedirs(f"{save_dir}", exist_ok=True)
+    save_dir = f"{save_root}/{detrend_way}"
+    os.makedirs(f"{save_dir}/data", exist_ok=True)
 
     df_params_all = []
     X_all = []
@@ -74,8 +74,8 @@ def main(tic_ids_str, detrend_way, preprocess_root, save_root):
             fname_1 = f"{tic}_inj_{tag}.csv"
             fname_0 = f"{tic}_org_{tag}.csv"
 
-            binned_1.to_csv(f"{save_dir}/{fname_1}", index=False)
-            binned_0.to_csv(f"{save_dir}/{fname_0}", index=False)
+            binned_1.to_csv(f"{save_dir}/data/{fname_1}", index=False)
+            binned_0.to_csv(f"{save_dir}/data/{fname_0}", index=False)
 
             # CNN training 資料
             X_all.append(binned_1['flux_avg'].values)
