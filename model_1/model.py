@@ -12,18 +12,18 @@ class CNNClassifier:
         self.conv4_filters = 64
         self.kernel_size = kernel_size
         self.model = self._build_model()
-        
+
     def _build_model(self):
         model = Sequential()
-        model.add(Conv1D(self.conv1_filters, self.kernel_size, activation='relu', input_shape=self.input_shape))
-        model.add(MaxPooling1D(3))
-        model.add(Conv1D(self.conv2_filters, self.kernel_size, activation='relu'))
-        model.add(GlobalAveragePooling1D())
-        model.add(Conv1D(self.conv3_filters, self.kernel_size, activation='relu', input_shape=self.input_shape))
-        model.add(MaxPooling1D(3))
-        model.add(Conv1D(self.conv4_filters, self.kernel_size, activation='relu'))
+        model.add(Conv1D(self.conv1_filters, self.kernel_size, activation='relu',
+                         padding='same', input_shape=self.input_shape))
+        model.add(MaxPooling1D(2))
+        model.add(Conv1D(self.conv2_filters, self.kernel_size, activation='relu', padding='same'))
+        model.add(MaxPooling1D(2))
+        model.add(Conv1D(self.conv3_filters, self.kernel_size, activation='relu', padding='same'))
+        model.add(MaxPooling1D(2))
+        model.add(Conv1D(self.conv4_filters, self.kernel_size, activation='relu', padding='same'))
         model.add(GlobalAveragePooling1D())
         model.add(Dense(1, activation='sigmoid'))
         model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
         return model
-

@@ -4,11 +4,14 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import KFold, train_test_split
 from tensorflow.keras.callbacks import Callback, CSVLogger
-from model import CNNClassifier
+from model import CNNClassifier  # 確保 model.py 中 CNNClassifier 已正確實作
 
-save_root = "/data2/gigicheng/data_21/raw_data/inject_results"
+# ======== 設定 ========
+input_root = "/data2/gigicheng/data_21/raw_data/inject_results"
+save_root = "/data2/gigicheng/data_21/raw_data/CNN4_layer"
 detrend_methods = ["org", "cubic_sample"]
 
+# ======== Callback: 穩定精度儲存 ========
 class StableAccuracyCheckpoint(Callback):
     """
     儲存模型權重，並記錄達到穩定時的各種數值
@@ -43,27 +46,33 @@ class StableAccuracyCheckpoint(Callback):
                 # 避免重複記錄
                 self.val_acc_history = []
 
-# 訓練每個 detrend_way
+# ======== 訓練迴圈 ========
 results_summary = []
 
 for detrend_way in detrend_methods:
     print(f"\n=== Training for detrend_way: {detrend_way} ===")
-    data_dir = f"{save_root}/{detrend_way}/data"
-
-    with open(f"{data_dir}/X.pkl", "rb") as f:
+    data_dir = f"{save_root}/{detrend_way}"
+    os.makedirs(data_dir, exist_ok=True)
+    input_dir = f"{input_root}/{detrend_way}"
+    # 載入資料
+    with open(f"{input_dir}/X.pkl", "rb") as f:
         X = pickle.load(f)
-    with open(f"{data_dir}/y.pkl", "rb") as f:
+    with open(f"{input_dir}/y.pkl", "rb") as f:
         y = pickle.load(f)
 
-    # 切分 Test
+    # 切分 Test 集
     X_train_val, X_test, Y_train_val, Y_test = train_test_split(
         X, y, test_size=0.1, random_state=42, shuffle=True
     )
 
+    # reshape for Conv1D: (batch, timesteps, channels)
+    X_train_val = X_train_val[..., np.newaxis]
+    X_test      = X_test[..., np.newaxis]
+
+    # KFold
     kf = KFold(n_splits=5, shuffle=True, random_state=42)
     fold_idx = 1
     fold_accs = []
-
     all_stable_info = []  # 每個 fold 達到穩定 epoch 資訊
 
     for train_idx, val_idx in kf.split(X_train_val):
@@ -71,7 +80,13 @@ for detrend_way in detrend_methods:
         X_train, X_val = X_train_val[train_idx], X_train_val[val_idx]
         Y_train, Y_val = Y_train_val[train_idx], Y_train_val[val_idx]
 
-        cnn = CNNClassifier(input_shape=(X.shape[1], 1))
+        # 打印 shape 確認
+        print("X_train shape:", X_train.shape)
+        print("X_val shape:", X_val.shape)
+        print("X_test shape:", X_test.shape)
+        unique, counts = np.unique(Y_train, return_counts=True)
+        print(dict(zip(unique, counts)))
+        cnn = CNNClassifier(input_shape=(X_train.shape[1], 1))
 
         csv_logger = CSVLogger(f"{data_dir}/training_log_fold{fold_idx}.csv", append=True)
         stable_cb = StableAccuracyCheckpoint(
@@ -80,6 +95,7 @@ for detrend_way in detrend_methods:
             threshold=0.001
         )
 
+        # 訓練
         cnn.model.fit(
             X_train, Y_train,
             batch_size=32,
@@ -114,7 +130,7 @@ for detrend_way in detrend_methods:
     df_stable = pd.DataFrame(all_stable_info)
     df_stable.to_csv(f"{data_dir}/stable_epochs_info.csv", index=False)
 
-# 比較不同 detrend
+# ======== 比較不同 detrend ========
 results_summary = sorted(results_summary, key=lambda x: x["mean_test_acc"], reverse=True)
 print("\n=== Detrend Comparison ===")
 for r in results_summary:
