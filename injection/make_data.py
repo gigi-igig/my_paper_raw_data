@@ -7,7 +7,7 @@ from tqdm import tqdm
 from mangol import mandel_agol as mangol
 from fold_way import bin_lightcurve
 from tool import inject, pad_to_npoints
-from config import detrend_method
+from config import detrend_methods
 
 
 def main(tic_ids_str, detrend_way, preprocess_root, save_root):
@@ -63,7 +63,7 @@ def main(tic_ids_str, detrend_way, preprocess_root, save_root):
             # binning
             binned_1 = pad_to_npoints(
                 bin_lightcurve(df_lc_1, pd_test, interval=None, bin_minutes=15),
-                target_points=193
+                target_points=97#193
             )
             binned_0 = pad_to_npoints(
                 bin_lightcurve(df_lc_0, pd_test, interval=None, bin_minutes=15),
@@ -132,7 +132,7 @@ if __name__ == "__main__":
     summary_csv = "/data2/gigicheng/data_21/raw_data/preprocess/mean_to_0/preprocess_summary_mean_to_0.csv"
     df_summary = pd.read_csv(summary_csv)
 
-    tic_ids = df_summary["TIC ID"].dropna().astype(int).unique()[:5]
+    tic_ids = df_summary["TIC ID"].dropna().astype(int).unique()
     tic_ids_str = [str(t).zfill(10) for t in tic_ids]
 
     preprocess_root = "/data2/gigicheng/data_21/raw_data/preprocess/mean_to_0"
@@ -140,5 +140,5 @@ if __name__ == "__main__":
 
     os.makedirs(save_root, exist_ok=True)
 
-    for detrend_way in detrend_method:
+    for detrend_way in detrend_methods:
         main(tic_ids_str, detrend_way, preprocess_root, save_root)
