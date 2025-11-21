@@ -26,7 +26,17 @@ def inject(period_day_begin, period_day_end, t):
     rp_rs = np.random.uniform(0.1, 0.5)
     a_rs = np.random.uniform(8, 30)
     iang = np.random.uniform(86, 90)
-    t0 = np.random.uniform(t.min(), t.max())
+    # 假設 t 是一個 numpy array
+    t_min, t_max = t.min(), t.max()
+    range_40 = 0.4 * (t_max - t_min)
+    center = (t_max + t_min) / 2
+
+    # 中間 40% 區間上下界
+    lower = center - range_40 / 2
+    upper = center + range_40 / 2
+
+    # 隨機取 t0
+    t0 = np.random.uniform(lower, upper)
 
     # 生成 transit 幾何與光度模型
     z = ha_z(t, t0, period_day, a_rs, iang)
