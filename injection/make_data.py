@@ -6,11 +6,11 @@ import pickle
 from tqdm import tqdm
 from mangol import mandel_agol as mangol
 from fold_way import bin_lightcurve
-from tool import inject, pad_to_npoints
+from tool import inject, pad_to_npoints, generate_signals, ha_z
 from config import detrend_methods
 
 
-def main(tic_ids_str, detrend_way, preprocess_root, save_root):
+def main(tic_ids_str, detrend_way, preprocess_root, save_root, tic_ids_signal_dict):
 
     # 每個 detrend_way 自己的資料夾
     save_dir = f"{save_root}/{detrend_way}"
@@ -48,14 +48,16 @@ def main(tic_ids_str, detrend_way, preprocess_root, save_root):
         df_lc_0 = pd.DataFrame({"TIME": t, "FLUX": noi})
 
         # 注入訊號
-        y, period_days, rp_rs, a_rs, iang, t0 = inject(0.4, 1, t)
+        sig_params = tic_ids_signal_dict[tic]
+        z = ha_z(t, sig_params['t0'], sig_params['period_days'], sig_params['a_rs'], sig_params['iang'])
+        y = mangol(z, u1=0.5, u2=0, p0 = sig_params['rp_rs'] )
         yk = y * noi
         df_lc_1 = pd.DataFrame({"TIME": t, "FLUX": yk})
 
         # 3 種摺疊偏移
         for delta_min in [-2, 0, 2]:
 
-            pd_test = period_days + delta_min / 1440
+            pd_test = sig_params['period_days'] + delta_min / 1440
             tag = ("p_0" if delta_min == 0
                    else f"p_m{abs(delta_min)}" if delta_min < 0
                    else f"p_p{abs(delta_min)}")
@@ -90,21 +92,22 @@ def main(tic_ids_str, detrend_way, preprocess_root, save_root):
                 "src_file": os.path.basename(csv_path),
                 "file": fname_1,
                 "signal": 1,
-                "period_days": period_days,
+                "period_days": sig_params['period_days'],
                 "delta_min": delta_min,
                 "bin_minutes": 15,
-                "rp_rs": rp_rs,
-                "a_rs": a_rs,
-                "iang": iang,
-                "t0": t0
+                "rp_rs": sig_params['rp_rs'],
+                "a_rs": sig_params['a_rs'],
+                "iang": sig_params['iang'],
+                "t0": sig_params['t0']
             })
+
             df_params_all.append({
                 "TIC": tic,
                 "detrend_way": detrend_way,
                 "src_file": os.path.basename(csv_path),
                 "file": fname_0,
                 "signal": 0,
-                "period_days": period_days,
+                "period_days": sig_params['period_days'],
                 "delta_min": delta_min,
                 "bin_minutes": 15,
                 "rp_rs": np.nan,
@@ -139,6 +142,6 @@ if __name__ == "__main__":
     save_root = "/data2/gigicheng/data_21/raw_data/inject_results"
 
     os.makedirs(save_root, exist_ok=True)
-
+    tic_ids_signal_dict = generate_signals(tic_ids_str)
     for detrend_way in detrend_methods:
-        main(tic_ids_str, detrend_way, preprocess_root, save_root)
+        main(tic_ids_str, detrend_way, preprocess_root, save_root, tic_ids_signal_dict)
