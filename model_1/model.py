@@ -3,9 +3,9 @@ from sklearn.model_selection import train_test_split
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv1D, BatchNormalization, Activation, MaxPooling1D, GlobalAveragePooling1D, Dense, Dropout
 
-class CNNClassifier2:
+class CNNClassifier:
     def __init__(self, input_shape,
-                 conv_filters=[64, 128, 256],
+                 conv_filters=[64, 32, 16],
                  kernel_size=3,
                  dropout_rate=0.3):
         self.input_shape = input_shape

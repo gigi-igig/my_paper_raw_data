@@ -52,24 +52,14 @@ def ha_z(t, t0, period, a_rs, iang=90):
     z[(phi/(2*np.pi)-0.25)%1<0.5] = z.max()
     return z
 
-def inject(period_day_begin, period_day_end, t):
-    u1, u2 = 0.5, 0
+def inject(period_day_begin, period_day_end):
     # 隨機生成 transit 參數
     period_day = np.random.uniform(period_day_begin, period_day_end)
     rp_rs = np.random.uniform(0.1, 0.5)
     a_rs = np.random.uniform(8, 30)
     iang = np.random.uniform(86, 90)
-    # 假設 t 是一個 numpy array
-    t_min, t_max = t.min(), t.max()
-    range_40 = 0.4 * (t_max - t_min)
-    center = (t_max + t_min) / 2
-
-    # 中間 40% 區間上下界
-    lower = center - range_40 / 2
-    upper = center + range_40 / 2
-
     # 隨機取 t0
-    t0 = np.random.uniform(lower, upper)
+    t0 = np.random.uniform(0.4*period_day, 0.6*period_day)
 
     return period_day, rp_rs, a_rs, iang, t0
 
@@ -78,7 +68,7 @@ def generate_signals(tic_ids, seed=1):
     signals = {}
     for tic in tic_ids:
         # 生成 signal，但不做任何 detrend
-        period_days, rp_rs, a_rs, iang, t0 = inject(0.4, 1, np.linspace(0, 27, 100))  # dummy t
+        period_days, rp_rs, a_rs, iang, t0 = inject(0.4, 1)  # dummy t
         signals[tic] = {
             "period_days": period_days,
             "rp_rs": rp_rs,
