@@ -1,12 +1,23 @@
-from sklearn.model_selection import train_test_split
-from model import CNNClassifier
-import pickle
+import numpy as np
 import pandas as pd
+import random
 import os
+import pickle
+from model import CNNClassifier2
 from tensorflow.keras.callbacks import CSVLogger, Callback
+from tensorflow.keras.optimizers import Adam
+import tensorflow as tf
+from early_stop import EpochLogger, AccuracyPlateauEarlyStop
 
-input_root = "/data2/gigicheng/data_21/raw_data/inject_results"
-save_root = "/data2/gigicheng/data_21/raw_data/CNN4_layer"
+
+# 固定隨機種子
+SEED = 42
+np.random.seed(SEED)
+tf.random.set_seed(SEED)
+random.seed(SEED)
+
+input_root = "/data2/gigicheng/data_21/raw_data/inject_results/bin_10"
+save_root = "/data2/gigicheng/data_21/raw_data/CNN4_layer/bin_10"
 detrend_methods = ["org", "cubic_sample"]
 
 results_summary = []
@@ -23,43 +34,94 @@ for detrend_way in detrend_methods:
     with open(f"{input_dir}/y.pkl", "rb") as f:
         y = pickle.load(f)
 
-    X = X-1
-    # 切分 Test 集
-    X_train_val, X_test, Y_train_val, Y_test = train_test_split(
-        X, y, test_size=0.1, random_state=42, shuffle=True
-    )
+    X = X - 1
+    X = np.expand_dims(X, axis=-1)
+    y = np.array(y)
 
-    cnn = CNNClassifier(input_shape=(X.shape[1], 1))
+    N = len(X)
+    fold_size = N // 10  # 10% 作為測試
+    val_size = fold_size  # 10% 作為驗證
 
-    # CSVLogger
-    csv_logger = CSVLogger(f"{data_dir}/training_log.csv", append=True)
+    for fold_idx in range(5):
+        # 計算 Test/Val 的 index
+        test_start = fold_idx * fold_size
+        test_end = test_start + fold_size
+        val_start = test_end
+        val_end = val_start + val_size
 
-    # 自訂 Callback: 每 5 epoch 顯示一次
-    class EpochLogger(Callback):
-        def __init__(self, interval=5):
-            super().__init__()
-            self.interval = interval
+        # Train: 剩下的資料
+        train_idx = list(range(0, test_start)) + list(range(val_end, N))
+        test_idx = list(range(test_start, test_end))
+        val_idx = list(range(val_start, val_end))
 
-        def on_epoch_end(self, epoch, logs=None):
-            if (epoch + 1) % self.interval == 0:
-                loss = logs.get('loss')
-                acc = logs.get('accuracy')
-                val_loss = logs.get('val_loss')
-                val_acc = logs.get('val_accuracy')
-                print(f"Epoch {epoch+1}: loss={loss:.4f}, acc={acc:.4f}, val_loss={val_loss:.4f}, val_acc={val_acc:.4f}")
+        X_train, Y_train = X[train_idx], y[train_idx]
+        X_val, Y_val = X[val_idx], y[val_idx]
+        X_test, Y_test = X[test_idx], y[test_idx]
 
-    # 訓練模型
-    cnn.model.fit(
-        X_train_val,
-        Y_train_val,
-        batch_size=32,
-        epochs=100,
-        verbose=0,  # 關閉預設進度條，改由 Callback 顯示
-        validation_split=0.1,
-        callbacks=[csv_logger, EpochLogger(interval=5)]
-    )
+        print(f"\n--- Fold {fold_idx+1} ---")
+        print(f"Train: {len(X_train)}, Val: {len(X_val)}, Test: {len(X_test)}")
 
-    # 評估模型
-    loss, accuracy = cnn.model.evaluate(X_test, Y_test, batch_size=32)
-    print(f"Test loss: {loss:.4f}")
-    print(f"Test accuracy: {accuracy:.4f}")
+        # 每 fold 都固定 seed，避免 tensorflow 初始化不同
+        np.random.seed(SEED)
+        tf.random.set_seed(SEED)
+        random.seed(SEED)
+
+        cnn = CNNClassifier2(input_shape=(X.shape[1], 1))
+        learning_rate = 1e-3
+        optimizer = Adam(learning_rate=learning_rate)
+
+        cnn.model.compile(
+            optimizer=optimizer,
+            loss='binary_crossentropy',  # 假設是分類問題
+            metrics=['accuracy']
+        )
+        csv_logger = CSVLogger(f"{data_dir}/training_log_fold{fold_idx+1}.csv", append=True)
+        early_stop = AccuracyPlateauEarlyStop(patience=5, threshold=0.001)
+
+        cnn.model.fit(
+            X_train,
+            Y_train,
+            batch_size=32,
+            epochs=300,
+            verbose=0,
+            validation_data=(X_val, Y_val),
+            callbacks=[csv_logger, EpochLogger(interval=5), early_stop]
+        )
+        
+        # 評估模型
+        loss, accuracy = cnn.model.evaluate(X_test, Y_test, batch_size=32)
+        print(f"Fold {fold_idx+1} - Test loss: {loss:.4f}, Test accuracy: {accuracy:.4f}")
+
+        # 儲存模型
+        model_path = os.path.join(data_dir, f"cnn_{detrend_way}_fold{fold_idx+1}.keras")
+        cnn.model.save(model_path)
+
+        results_summary.append({
+            'detrend': detrend_way,
+            'fold': fold_idx+1,
+            'train_samples': len(X_train),
+            'val_samples': len(X_val),
+            'test_samples': len(X_test),
+            'test_loss': loss,
+            'test_accuracy': accuracy
+        })
+
+# 匯出 fold 結果
+results_df = pd.DataFrame(results_summary)
+results_df.to_csv(f"{save_root}/sliding_kfold_results_summary.csv", index=False)
+
+# 計算每個 detrend 的平均 test accuracy
+detrend_summary = []
+for detrend_way in set(r['detrend'] for r in results_summary):
+    fold_accs = [r['test_accuracy'] for r in results_summary if r['detrend'] == detrend_way]
+    mean_acc = np.mean(fold_accs)
+    detrend_summary.append({
+        'detrend_way': detrend_way,
+        'mean_test_acc': mean_acc
+    })
+
+# 按 mean_test_acc 降序排序並列印
+detrend_summary = sorted(detrend_summary, key=lambda x: x["mean_test_acc"], reverse=True)
+print("\n=== Detrend Comparison ===")
+for r in detrend_summary:
+    print(f"{r['detrend_way']}: mean_test_acc = {r['mean_test_acc']:.4f}")
