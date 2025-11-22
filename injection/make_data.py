@@ -12,6 +12,7 @@ from config import detrend_methods
 
 def main(tic_ids_str, detrend_way, preprocess_root, save_root, tic_ids_signal_dict):
 
+    bin_minutes = 10
     # 每個 detrend_way 自己的資料夾
     save_dir = f"{save_root}/{detrend_way}"
     os.makedirs(f"{save_dir}/data", exist_ok=True)
@@ -64,12 +65,12 @@ def main(tic_ids_str, detrend_way, preprocess_root, save_root, tic_ids_signal_di
 
             # binning
             binned_1 = pad_to_npoints(
-                bin_lightcurve(df_lc_1, pd_test, interval=None, bin_minutes=15),
-                target_points=97#193
+                bin_lightcurve(df_lc_1, pd_test, interval=None, bin_minutes=bin_minutes),
+                target_points=145#193
             )
             binned_0 = pad_to_npoints(
-                bin_lightcurve(df_lc_0, pd_test, interval=None, bin_minutes=15),
-                target_points=97
+                bin_lightcurve(df_lc_0, pd_test, interval=None, bin_minutes=bin_minutes),
+                target_points=145
             )
 
             # 儲存 CSV
@@ -94,7 +95,7 @@ def main(tic_ids_str, detrend_way, preprocess_root, save_root, tic_ids_signal_di
                 "signal": 1,
                 "period_days": sig_params['period_days'],
                 "delta_min": delta_min,
-                "bin_minutes": 15,
+                "bin_minutes": bin_minutes,
                 "rp_rs": sig_params['rp_rs'],
                 "a_rs": sig_params['a_rs'],
                 "iang": sig_params['iang'],
@@ -109,7 +110,7 @@ def main(tic_ids_str, detrend_way, preprocess_root, save_root, tic_ids_signal_di
                 "signal": 0,
                 "period_days": sig_params['period_days'],
                 "delta_min": delta_min,
-                "bin_minutes": 15,
+                "bin_minutes": bin_minutes,
                 "rp_rs": np.nan,
                 "a_rs": np.nan,
                 "iang": np.nan,
@@ -139,7 +140,7 @@ if __name__ == "__main__":
     tic_ids_str = [str(t).zfill(10) for t in tic_ids]
 
     preprocess_root = "/data2/gigicheng/data_21/raw_data/preprocess/mean_to_0"
-    save_root = "/data2/gigicheng/data_21/raw_data/inject_results"
+    save_root = "/data2/gigicheng/data_21/raw_data/inject_results/bin_10"
 
     os.makedirs(save_root, exist_ok=True)
     tic_ids_signal_dict = generate_signals(tic_ids_str)
