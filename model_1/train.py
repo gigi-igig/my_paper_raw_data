@@ -1,14 +1,15 @@
-import numpy as np
-import pandas as pd
-import random
+import sys
 import os
 import pickle
-from model import CNNClassifier2
-from tensorflow.keras.callbacks import CSVLogger, Callback
-from tensorflow.keras.optimizers import Adam
+import random
+import numpy as np
+import pandas as pd
 import tensorflow as tf
+from model import CNNClassifier2
+from tensorflow.keras.callbacks import CSVLogger
+from tensorflow.keras.optimizers import Adam
 from early_stop import EpochLogger, AccuracyPlateauEarlyStop
-
+from tool import Tee
 
 # 固定隨機種子
 SEED = 42
@@ -22,13 +23,24 @@ detrend_methods = ["org", "cubic_sample"]
 
 results_summary = []
 
+# 建立 log 檔並 redirect stdout
+os.makedirs(save_root, exist_ok=True)
+log_path = os.path.join(save_root, "training_log.txt")
+log_file = open(log_path, "w")
+sys.stdout = Tee(sys.stdout, log_file)
+
+print("\n=== Model Summary (Printed Once) ===")
+tmp = CNNClassifier2(input_shape=(145, 1))
+tmp.model.summary()
+print("\n=== End of Model Summary ===\n")
+
+# 開始訓練
 for detrend_way in detrend_methods:
     print(f"\n=== Training for detrend_way: {detrend_way} ===")
     data_dir = f"{save_root}/{detrend_way}"
     os.makedirs(data_dir, exist_ok=True)
     input_dir = f"{input_root}/{detrend_way}"
 
-    # 載入資料
     with open(f"{input_dir}/X.pkl", "rb") as f:
         X = pickle.load(f)
     with open(f"{input_dir}/y.pkl", "rb") as f:
@@ -39,17 +51,15 @@ for detrend_way in detrend_methods:
     y = np.array(y)
 
     N = len(X)
-    fold_size = N // 10  # 10% 作為測試
-    val_size = fold_size  # 10% 作為驗證
+    fold_size = N // 10
+    val_size = fold_size
 
     for fold_idx in range(5):
-        # 計算 Test/Val 的 index
         test_start = fold_idx * fold_size
         test_end = test_start + fold_size
         val_start = test_end
         val_end = val_start + val_size
 
-        # Train: 剩下的資料
         train_idx = list(range(0, test_start)) + list(range(val_end, N))
         test_idx = list(range(test_start, test_end))
         val_idx = list(range(val_start, val_end))
@@ -61,20 +71,19 @@ for detrend_way in detrend_methods:
         print(f"\n--- Fold {fold_idx+1} ---")
         print(f"Train: {len(X_train)}, Val: {len(X_val)}, Test: {len(X_test)}")
 
-        # 每 fold 都固定 seed，避免 tensorflow 初始化不同
         np.random.seed(SEED)
         tf.random.set_seed(SEED)
         random.seed(SEED)
 
         cnn = CNNClassifier2(input_shape=(X.shape[1], 1))
-        learning_rate = 1e-3
-        optimizer = Adam(learning_rate=learning_rate)
+        optimizer = Adam(learning_rate=1e-3)
 
         cnn.model.compile(
             optimizer=optimizer,
-            loss='binary_crossentropy',  # 假設是分類問題
+            loss='binary_crossentropy',
             metrics=['accuracy']
         )
+
         csv_logger = CSVLogger(f"{data_dir}/training_log_fold{fold_idx+1}.csv", append=True)
         early_stop = AccuracyPlateauEarlyStop(patience=5, threshold=0.001)
 
@@ -87,12 +96,10 @@ for detrend_way in detrend_methods:
             validation_data=(X_val, Y_val),
             callbacks=[csv_logger, EpochLogger(interval=5), early_stop]
         )
-        
-        # 評估模型
+
         loss, accuracy = cnn.model.evaluate(X_test, Y_test, batch_size=32)
         print(f"Fold {fold_idx+1} - Test loss: {loss:.4f}, Test accuracy: {accuracy:.4f}")
 
-        # 儲存模型
         model_path = os.path.join(data_dir, f"cnn_{detrend_way}_fold{fold_idx+1}.keras")
         cnn.model.save(model_path)
 
@@ -110,7 +117,6 @@ for detrend_way in detrend_methods:
 results_df = pd.DataFrame(results_summary)
 results_df.to_csv(f"{save_root}/sliding_kfold_results_summary.csv", index=False)
 
-# 計算每個 detrend 的平均 test accuracy
 detrend_summary = []
 for detrend_way in set(r['detrend'] for r in results_summary):
     fold_accs = [r['test_accuracy'] for r in results_summary if r['detrend'] == detrend_way]
@@ -120,7 +126,6 @@ for detrend_way in set(r['detrend'] for r in results_summary):
         'mean_test_acc': mean_acc
     })
 
-# 按 mean_test_acc 降序排序並列印
 detrend_summary = sorted(detrend_summary, key=lambda x: x["mean_test_acc"], reverse=True)
 print("\n=== Detrend Comparison ===")
 for r in detrend_summary:
