@@ -46,7 +46,7 @@ class CNNClassifier:
 
 
 class CNNClassifier2:
-    def __init__(self, input_shape, conv1_filters=64, conv2_filters=128, kernel_size=3):
+    def __init__(self, input_shape, conv1_filters=64, conv2_filters=32, kernel_size=3):
         self.input_shape = input_shape
         self.conv1_filters = conv1_filters
         self.conv2_filters = conv2_filters
@@ -56,7 +56,7 @@ class CNNClassifier2:
     def _build_model(self):
         model = Sequential()
         model.add(Conv1D(self.conv1_filters, self.kernel_size, activation='relu', input_shape=self.input_shape, padding = "same"))
-        model.add(MaxPooling1D(3))
+        model.add(MaxPooling1D(2))
         model.add(Conv1D(self.conv2_filters, self.kernel_size, activation='relu', padding = "same"))
         model.add(GlobalAveragePooling1D())
         model.add(Dense(1, activation='sigmoid'))

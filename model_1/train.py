@@ -31,7 +31,7 @@ sys.stdout = Tee(sys.stdout, log_file)
 
 print("\n=== Model Summary (Printed Once) ===")
 tmp = CNNClassifier2(input_shape=(145, 1))
-tmp.model.summary()
+print(tmp.model.summary())
 print("\n=== End of Model Summary ===\n")
 
 # 開始訓練
@@ -96,7 +96,7 @@ for detrend_way in detrend_methods:
             validation_data=(X_val, Y_val),
             callbacks=[csv_logger, EpochLogger(interval=5), early_stop]
         )
-
+        stopped_epoch = early_stop.stopped_epoch if early_stop.stopped_epoch is not None else 300
         loss, accuracy = cnn.model.evaluate(X_test, Y_test, batch_size=32)
         print(f"Fold {fold_idx+1} - Test loss: {loss:.4f}, Test accuracy: {accuracy:.4f}")
 
@@ -110,7 +110,8 @@ for detrend_way in detrend_methods:
             'val_samples': len(X_val),
             'test_samples': len(X_test),
             'test_loss': loss,
-            'test_accuracy': accuracy
+            'test_accuracy': accuracy,
+            'stopped_epoch': stopped_epoch
         })
 
 # 匯出 fold 結果
@@ -120,10 +121,15 @@ results_df.to_csv(f"{save_root}/sliding_kfold_results_summary.csv", index=False)
 detrend_summary = []
 for detrend_way in set(r['detrend'] for r in results_summary):
     fold_accs = [r['test_accuracy'] for r in results_summary if r['detrend'] == detrend_way]
+    fold_stops = [r['stopped_epoch'] for r in results_summary if r['detrend'] == detrend_way]
+
     mean_acc = np.mean(fold_accs)
+    mean_stop = np.mean(fold_stops)
+
     detrend_summary.append({
         'detrend_way': detrend_way,
-        'mean_test_acc': mean_acc
+        'mean_test_acc': mean_acc,
+        'mean_stopped_epoch': mean_stop
     })
 
 detrend_summary = sorted(detrend_summary, key=lambda x: x["mean_test_acc"], reverse=True)

@@ -20,26 +20,29 @@ class AccuracyPlateauEarlyStop(Callback):
         self.threshold = threshold
         self.val_acc_history = []
         self.wait = 0
+        self.stopped_epoch = None
 
     def on_epoch_end(self, epoch, logs=None):
         val_acc = logs.get("val_accuracy")
 
-        # 第一次 epoch 先存起來
-        if len(self.val_acc_history) == 0:
+        # 前 10 epoch 或 val_acc < 0.7 時，先累積資料，但不判斷 early stop
+        if len(self.val_acc_history) < 10 or val_acc < 0.7:
             self.val_acc_history.append(val_acc)
             return
 
-        # 計算前一次與現在的差
+        # 計算變化幅度
         diff = abs(val_acc - self.val_acc_history[-1])
         self.val_acc_history.append(val_acc)
 
         if diff < self.threshold:
             self.wait += 1
         else:
-            self.wait = 0  # 表現有明顯進步 → 重置計數
+            self.wait = 0  # 表現明顯進步 → 重置
 
-        # 檢查是否連續 patience 次都沒變化
+        # 若連續 patience 次停滯 → early stop
         if self.wait >= self.patience:
-            print(f"\nEarly stopping triggered at epoch {epoch+1} "
+            self.stopped_epoch = epoch + 1
+            print(f"\nEarly stopping triggered at epoch {self.stopped_epoch} "
                   f"(val_accuracy change < {self.threshold} for {self.patience} epochs)")
             self.model.stop_training = True
+

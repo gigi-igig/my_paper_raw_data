@@ -63,12 +63,12 @@ def inject(period_day_begin, period_day_end):
 
     return period_day, rp_rs, a_rs, iang, t0
 
-def generate_signals(tic_ids, seed=1):
+def generate_signals(tic_ids, period_day_begin, period_day_end, seed=1):
     np.random.seed(seed)
     signals = {}
     for tic in tic_ids:
         # 生成 signal，但不做任何 detrend
-        period_days, rp_rs, a_rs, iang, t0 = inject(0.4, 1)  # dummy t
+        period_days, rp_rs, a_rs, iang, t0 = inject(period_day_begin, period_day_end)  # dummy t
         signals[tic] = {
             "period_days": period_days,
             "rp_rs": rp_rs,

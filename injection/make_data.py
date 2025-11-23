@@ -10,9 +10,7 @@ from tool import inject, pad_to_npoints, generate_signals, ha_z
 from config import detrend_methods
 
 
-def main(tic_ids_str, detrend_way, preprocess_root, save_root, tic_ids_signal_dict):
-
-    bin_minutes = 10
+def main(tic_ids_str, detrend_way, preprocess_root, save_root, tic_ids_signal_dict, target_points, bin_minutes = 10):
     # 每個 detrend_way 自己的資料夾
     save_dir = f"{save_root}/{detrend_way}"
     os.makedirs(f"{save_dir}/data", exist_ok=True)
@@ -66,11 +64,11 @@ def main(tic_ids_str, detrend_way, preprocess_root, save_root, tic_ids_signal_di
             # binning
             binned_1 = pad_to_npoints(
                 bin_lightcurve(df_lc_1, pd_test, interval=None, bin_minutes=bin_minutes),
-                target_points=145#193
+                target_points=target_points
             )
             binned_0 = pad_to_npoints(
                 bin_lightcurve(df_lc_0, pd_test, interval=None, bin_minutes=bin_minutes),
-                target_points=145
+                target_points=target_points
             )
 
             # 儲存 CSV
@@ -140,9 +138,9 @@ if __name__ == "__main__":
     tic_ids_str = [str(t).zfill(10) for t in tic_ids]
 
     preprocess_root = "/data2/gigicheng/data_21/raw_data/preprocess/mean_to_0"
-    save_root = "/data2/gigicheng/data_21/raw_data/inject_results/bin_10"
+    save_root = "/data2/gigicheng/data_21/raw_data/inject_results/bin_15_P1to3"
 
     os.makedirs(save_root, exist_ok=True)
-    tic_ids_signal_dict = generate_signals(tic_ids_str)
+    tic_ids_signal_dict = generate_signals(tic_ids_str, period_day_begin=1, period_day_end=3)
     for detrend_way in detrend_methods:
-        main(tic_ids_str, detrend_way, preprocess_root, save_root, tic_ids_signal_dict)
+        main(tic_ids_str, detrend_way, preprocess_root, save_root, tic_ids_signal_dict, target_points=289, bin_minutes = 15)
