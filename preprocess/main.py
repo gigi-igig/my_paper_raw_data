@@ -102,7 +102,7 @@ def main(dir_path, input_csv_dir, sample_df, pic_batch=50, detrend_methods=[], c
 # -------------------------------
 if __name__ == "__main__":
 
-    dir_path = "mean_to_0"
+    dir_path = "2000_mean_to_0"
     input_df = pd.read_csv("/data2/gigicheng/data_21/raw_data/group_norm/group_summary_exp1.csv")
 
     filtered_df = input_df[input_df["org_flux_std"] < 0.001]

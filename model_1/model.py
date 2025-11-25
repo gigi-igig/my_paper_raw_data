@@ -4,43 +4,26 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv1D, BatchNormalization, Activation, MaxPooling1D, GlobalAveragePooling1D, Dense, Dropout
 
 class CNNClassifier:
-    def __init__(self, input_shape,
-                 conv_filters=[64, 32, 16],
-                 kernel_size=3,
-                 dropout_rate=0.3):
-        self.input_shape = input_shape
-        self.conv_filters = conv_filters
-        self.kernel_size = kernel_size
-        self.dropout_rate = dropout_rate
-        self.model = self._build_model()
+    def __init__(self, input_shape):
+        self.model = self._build_model(input_shape)
 
-    def _build_model(self):
+    def _build_model(self, input_shape):
         model = Sequential()
 
-        # ===== Conv Layer 1 =====
-        model.add(Conv1D(self.conv_filters[0], self.kernel_size,
-                         padding="same", strides=1,
-                         input_shape=self.input_shape))
+        model.add(Conv1D(64, 3, padding="same", activation="relu", input_shape=input_shape))
         model.add(BatchNormalization())
-        model.add(Activation("relu"))
+        model.add(MaxPooling1D(2))
 
-        # ===== Conv Layer 2 =====
-        model.add(Conv1D(self.conv_filters[1], self.kernel_size,
-                         padding="same", strides=2))
+        model.add(Conv1D(32, 3, padding="same", activation="relu"))
         model.add(BatchNormalization())
-        model.add(Activation("relu"))
+        model.add(MaxPooling1D(2))
 
-        # ===== Conv Layer 3 =====
-        model.add(Conv1D(self.conv_filters[2], self.kernel_size,
-                         padding="same", strides=2))
-        model.add(BatchNormalization())
-        model.add(Activation("relu"))
-
-        # ===== Dense Head =====
+        model.add(Conv1D(16, 3, padding="same", activation="relu"))
         model.add(GlobalAveragePooling1D())
-        model.add(Dense(64, activation="relu"))
-        model.add(Dropout(self.dropout_rate))
-        model.add(Dense(1, activation="sigmoid"))
+
+        model.add(Dense(32, activation='relu'))
+        model.add(Dropout(0.2))
+        model.add(Dense(1, activation='sigmoid'))
 
         return model
 
@@ -80,9 +63,11 @@ class CNNClassifier4:
         # 四層 Conv1D, padding='same'
         model.add(Conv1D(self.conv1_filters, self.kernel_size, activation='relu',
                          padding='same', input_shape=self.input_shape))
+        model.add(MaxPooling1D(3))
         model.add(Conv1D(self.conv2_filters, self.kernel_size, activation='relu', padding='same'))
         model.add(MaxPooling1D(2))
         model.add(Conv1D(self.conv3_filters, self.kernel_size, activation='relu', padding='same'))
+        model.add(MaxPooling1D(2))
         model.add(Conv1D(self.conv4_filters, self.kernel_size, activation='relu', padding='same'))
         model.add(GlobalAveragePooling1D())
         # 二分類

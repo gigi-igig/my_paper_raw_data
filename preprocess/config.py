@@ -1,7 +1,7 @@
 # ---------------------------
 # 參數設定
 # ---------------------------
-data_size = 1000
+data_size = 2000
 interval_list = [4500]
 detrend_methods = ["org", "cubic_sample"]
 colors = {

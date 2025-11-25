@@ -54,7 +54,7 @@ def main(tic_ids_str, detrend_way, preprocess_root, save_root, tic_ids_signal_di
         df_lc_1 = pd.DataFrame({"TIME": t, "FLUX": yk})
 
         # 3 種摺疊偏移
-        for delta_min in [-2, 0, 2]:
+        for delta_min in [-1.5, 0, 1.5]:
 
             pd_test = sig_params['period_days'] + delta_min / 1440
             tag = ("p_0" if delta_min == 0
@@ -131,16 +131,16 @@ def main(tic_ids_str, detrend_way, preprocess_root, save_root, tic_ids_signal_di
 
 if __name__ == "__main__":
 
-    summary_csv = "/data2/gigicheng/data_21/raw_data/preprocess/mean_to_0/preprocess_summary_mean_to_0.csv"
+    summary_csv = "/data2/gigicheng/data_21/raw_data/preprocess/2000_mean_to_0/preprocess_summary_2000_mean_to_0.csv"
     df_summary = pd.read_csv(summary_csv)
 
     tic_ids = df_summary["TIC ID"].dropna().astype(int).unique()
     tic_ids_str = [str(t).zfill(10) for t in tic_ids]
 
-    preprocess_root = "/data2/gigicheng/data_21/raw_data/preprocess/mean_to_0"
-    save_root = "/data2/gigicheng/data_21/raw_data/inject_results/bin_15_P1to3"
+    preprocess_root = "/data2/gigicheng/data_21/raw_data/preprocess/2000_mean_to_0"
+    save_root = "/data2/gigicheng/data_21/raw_data/inject_results/2000_bin_10_Pto1_256_d1"
 
     os.makedirs(save_root, exist_ok=True)
-    tic_ids_signal_dict = generate_signals(tic_ids_str, period_day_begin=1, period_day_end=3)
+    tic_ids_signal_dict = generate_signals(tic_ids_str, period_day_begin=0.4, period_day_end=1)
     for detrend_way in detrend_methods:
-        main(tic_ids_str, detrend_way, preprocess_root, save_root, tic_ids_signal_dict, target_points=289, bin_minutes = 15)
+        main(tic_ids_str, detrend_way, preprocess_root, save_root, tic_ids_signal_dict, target_points=256, bin_minutes = 10)

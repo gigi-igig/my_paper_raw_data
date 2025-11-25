@@ -12,13 +12,13 @@ from early_stop import EpochLogger, AccuracyPlateauEarlyStop
 from tool import Tee
 
 # 固定隨機種子
-SEED = 52
-#np.random.seed(SEED)
+SEED = 27
+np.random.seed(SEED)
 #tf.random.set_seed(SEED)
-#random.seed(SEED)
+random.seed(SEED)
 
-input_root = "/data2/gigicheng/data_21/raw_data/inject_results/2000_bin_10_Pto1_256_d1"
-save_root = "/data2/gigicheng/data_21/raw_data/CNN4_layer/test"
+input_root = "/data2/gigicheng/data_21/raw_data/inject_results"
+save_root = "/data2/gigicheng/data_21/raw_data/CNN4_layer"
 detrend_methods = ["org", "cubic_sample"]
 
 results_summary = []
@@ -35,31 +35,47 @@ print(tmp.model.summary())
 print("\n=== End of Model Summary ===\n")
 
 # 開始訓練
-for detrend_way in detrend_methods:
-    print(f"\n=== Training for detrend_way: {detrend_way} ===")
-    data_dir = f"{save_root}/{detrend_way}"
-    os.makedirs(data_dir, exist_ok=True)
-    input_dir = f"{input_root}/{detrend_way}"
+detrend_way = "others"
+print(f"\n=== Training for detrend_way: {detrend_way} ===")
+data_dir = f"{save_root}/{detrend_way}"
+os.makedirs(data_dir, exist_ok=True)
+input_dir = f"{input_root}/{detrend_way}"
 
-    with open(f"{input_dir}/X.pkl", "rb") as f:
-        X = pickle.load(f)
-    with open(f"{input_dir}/y.pkl", "rb") as f:
-        y = pickle.load(f)
+X = np.loadtxt(f"{input_dir}/selected_2000_flux_data_interp_seed42.txt")
+y = np.loadtxt(f"{input_dir}/selected_2000_labels_interp_seed42.txt")
+
+X = X[:600]
+y = y[:600]
+X = np.expand_dims(X, axis=-1)
+print("X.shape", X.shape)
+X = X - 1
+y = np.array(y)
+print("y.shape", y.shape)
+N = len(X)
+idx = np.arange(N)
+np.random.shuffle(idx)
+X = X[idx]
+y = y[idx]
+
     
-    #X = X.reshape(-1, 256, 1)
-    X = X - 1
-    y = np.array(y)
-    print("X", X.shape, "y", y.shape)
+fold_size = N // 10
+val_size = fold_size
 
+for fold_idx in range(5):
+    test_start = fold_idx * fold_size
+    test_end = test_start + fold_size
+    val_start = test_end
+    val_end = val_start + val_size
 
-    train_idx = list(range(0, 9600))
-    test_idx = list(range(9600, 10800))
-    val_idx = list(range(10800, 12000))
+    train_idx = list(range(0, test_start)) + list(range(val_end, N))
+    test_idx = list(range(test_start, test_end))
+    val_idx = list(range(val_start, val_end))
 
     X_train, Y_train = X[train_idx], y[train_idx]
     X_val, Y_val = X[val_idx], y[val_idx]
     X_test, Y_test = X[test_idx], y[test_idx]
 
+    print(f"\n--- Fold {fold_idx+1} ---")
     print(f"Train: {len(X_train)}, Val: {len(X_val)}, Test: {len(X_test)}")
     print("Y_train mean:", np.mean(Y_train))
     print("Y_val mean:", np.mean(Y_val))
@@ -75,27 +91,28 @@ for detrend_way in detrend_methods:
         metrics=['accuracy']
     )
 
-    csv_logger = CSVLogger(f"{data_dir}/training_log_fold.csv", append=True)
+    csv_logger = CSVLogger(f"{data_dir}/training_log_fold{fold_idx+1}.csv", append=True)
     early_stop = AccuracyPlateauEarlyStop(patience=5, threshold=0.001)
 
     cnn.model.fit(
-            X_train,
-            Y_train,
-            batch_size=32,
-            epochs=100,
-            verbose=0,
-            validation_data=(X_val, Y_val),
-            callbacks=[csv_logger, EpochLogger(interval=5), early_stop]
-        )
+        X_train,
+        Y_train,
+        batch_size=32,
+        epochs=20,
+        verbose=0,
+        validation_data=(X_val, Y_val),
+        callbacks=[csv_logger, EpochLogger(interval=1, validation_data=(X_val, Y_val)), early_stop]
+    )
     stopped_epoch = early_stop.stopped_epoch if early_stop.stopped_epoch is not None else 300
     loss, accuracy = cnn.model.evaluate(X_test, Y_test, batch_size=32)
-    print(f"Test loss: {loss:.4f}, Test accuracy: {accuracy:.4f}")
+    print(f"Fold {fold_idx+1} - Test loss: {loss:.4f}, Test accuracy: {accuracy:.4f}")
 
-    model_path = os.path.join(data_dir, f"cnn_{detrend_way}_fold.keras")
+    model_path = os.path.join(data_dir, f"cnn_{detrend_way}_fold{fold_idx+1}.keras")
     cnn.model.save(model_path)
 
     results_summary.append({
             'detrend': detrend_way,
+            'fold': fold_idx+1,
             'train_samples': len(X_train),
             'val_samples': len(X_val),
             'test_samples': len(X_test),
