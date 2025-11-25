@@ -113,7 +113,7 @@ for detrend_way in detrend_methods:
                 epoch_logger = EpochLogger(
                     interval=5,
                     validation_data=(X_val, Y_val),
-                    csv_path=f"{data_dir}/epoch_detail_fold{fold_idx+1}.csv",
+                    csv_path=f"{save_root}/training_results_epoch.csv",
                     fold=fold_idx+1,
                     seed=final_seed_used,
                     detrend_way=detrend_way
@@ -123,7 +123,7 @@ for detrend_way in detrend_methods:
                 cnn.model.fit(
                     X_train, Y_train,
                     batch_size=32,
-                    epochs=50,
+                    epochs=100,
                     verbose=0,
                     validation_data=(X_val, Y_val),
                     callbacks=[epoch_logger, early_stop]

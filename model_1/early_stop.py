@@ -1,65 +1,51 @@
-from tensorflow.keras.callbacks import CSVLogger, Callback
-
 import csv
 import os
 from tensorflow.keras.callbacks import Callback
 
 class EpochLogger(Callback):
-    def __init__(self, interval=5, validation_data=None, csv_path=None, fold=None, seed=None, detrend_way=None):
+    def __init__(self, interval, validation_data, csv_path, detrend_way, fold, seed):
         super().__init__()
         self.interval = interval
         self.validation_data = validation_data
-
-        # CSV 位置與額外欄位
         self.csv_path = csv_path
+        self.detrend_way = detrend_way
         self.fold = fold
         self.seed = seed
-        self.detrend_way = detrend_way
 
-        # 如果必要，建立 CSV 檔與 header
-        if self.csv_path is not None:
-            os.makedirs(os.path.dirname(self.csv_path), exist_ok=True)
-            if not os.path.exists(self.csv_path):
-                with open(self.csv_path, "w", newline="") as f:
-                    writer = csv.writer(f)
-                    writer.writerow([
-                        "epoch", "loss", "acc", "val_loss", "val_acc",
-                        "fold", "seed", "detrend_way"
-                    ])
-
-    def on_epoch_end(self, epoch, logs=None):
-        if (epoch + 1) % self.interval != 0:
-            return
-        
-        loss = logs.get("loss")
-        acc = logs.get("accuracy")
-        val_loss = logs.get("val_loss")
-        val_acc = logs.get("val_accuracy")
-
-        print(f"Epoch {epoch+1}: loss={loss:.4f}, acc={acc:.4f}, "
-              f"val_loss={val_loss:.4f}, val_acc={val_acc:.4f}")
-
-        # Optional：顯示 validation prediction 分布
-        '''
-        if self.validation_data is not None:
-            X_val, Y_val = self.validation_data
-            preds = self.model.predict(X_val, verbose=0)
-            print(f"pred_mean={preds.mean():.4f}, pred_min={preds.min():.4f}, pred_max={preds.max():.4f}")
-        '''
-        # === 寫入 CSV ===
-        if self.csv_path is not None:
-            with open(self.csv_path, "a", newline="") as f:
+        # 如果 CSV 不存在 → 建立 header
+        if not os.path.exists(csv_path):
+            with open(csv_path, "w", newline="") as f:
                 writer = csv.writer(f)
                 writer.writerow([
-                    epoch + 1,
-                    float(loss),
-                    float(acc),
-                    float(val_loss),
-                    float(val_acc),
-                    self.fold,
-                    self.seed,
-                    self.detrend_way
+                    "detrend", "fold", "seed", "epoch",
+                    "loss", "acc", "val_loss", "val_acc"
                 ])
+
+    def on_epoch_end(self, epoch, logs=None):
+        loss = logs.get('loss')
+        acc = logs.get('accuracy')
+        val_loss = logs.get('val_loss')
+        val_acc = logs.get('val_accuracy')
+
+        # ======== 1. interval = 5 時印出 ========
+        if (epoch + 1) % self.interval == 0:
+            print(f"Epoch {epoch+1}: loss={loss:.4f}, acc={acc:.4f}, "
+                  f"val_loss={val_loss:.4f}, val_acc={val_acc:.4f}")
+            
+        # ======== 2. 無論 interval，全部記錄到 CSV ========
+        with open(self.csv_path, "a", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                self.detrend_way,
+                self.fold,
+                self.seed,
+                epoch + 1,
+                float(loss),
+                float(acc),
+                float(val_loss),
+                float(val_acc)
+            ])
+
 
 
 class AccuracyPlateauEarlyStop(Callback):
