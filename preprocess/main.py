@@ -12,73 +12,53 @@ from datetime import datetime
 from preprocess.detrend import detrend_flux
 from preprocess.config import detrend_methods, interval_list, no_interval_detrend, cut_tail_len, data_size
 
+def preprocess(csv_name, csv_path, output_path):
 
+    # 讀取該 TIC 的 group_norm CSV
+    df = pd.read_csv(csv_path)
 
-# -------------------------------
-# II. 主程式
-# -------------------------------
-def main(dir_path, input_csv_dir, output_path, sample_df, detrend_methods=[], cut_tail_len=0):
+    time = df["TIME"].values
+    flux_norm = df["FLUX"].values
+    target_id = csv_name.split("_")[0]  # 例如 12345678_group_norm
 
-    tic_list = sample_df["TIC ID"].astype(str).str.zfill(10).tolist()
-    csv_files = [f"{tic}_group_norm.csv" for tic in tic_list]
+    # detrend
+    flux_detrended_dict = {}
+    _s_bic_cache = {}
 
-    results = []
+    for detrend_method in detrend_methods:
+        intervals = [None] if detrend_method in no_interval_detrend else interval_list
 
-    # 處理每一筆 sample
-    for idx, csv_name in enumerate(tqdm(csv_files)):
+        for interval in intervals:
 
-        csv_path = os.path.join(input_csv_dir, csv_name)
+            f_detrended, _s_bic_cache = detrend_flux(
+                detrend_method, time, flux_norm,
+                interval, _s_bic_cache=_s_bic_cache
+            )
 
-        if not os.path.exists(csv_path):
-            print(f"找不到檔案：{csv_path}，跳過。")
-            continue
+            f_detrended = f_detrended - np.mean(f_detrended)
 
-        # 讀取該 TIC 的 group_norm CSV
-        df = pd.read_csv(csv_path)
+            # tail cut
+            if cut_tail_len > 0 and len(f_detrended) > 2 * cut_tail_len:
+                f_detrended_cut = f_detrended[cut_tail_len:-cut_tail_len]
+                time_cut = time[cut_tail_len:-cut_tail_len]
+            else:
+                f_detrended_cut = f_detrended
+                time_cut = time
 
-        time = df["TIME"].values
-        flux_norm = df["FLUX"].values
-        target_id = csv_name.split("_")[0]  # 例如 12345678_group_norm
+            key_name = f"{detrend_method}_int{interval}"
+            flux_detrended_dict[key_name] = f_detrended_cut
 
-        # detrend
-        flux_detrended_dict = {}
-        _s_bic_cache = {}
+            # 儲存 CSV
+            combo_dir = f"{output_path}/{detrend_method}"
+            os.makedirs(combo_dir, exist_ok=True)
+            out_csv_path = os.path.join(
+                combo_dir,
+                f"{target_id}_interval{interval}_{detrend_method}_cut{cut_tail_len}.csv"
+            )
+            
+            pd.DataFrame({"TIME": time_cut, "FLUX": f_detrended_cut}).to_csv(out_csv_path, index=False)
 
-        for detrend_method in detrend_methods:
-            intervals = [None] if detrend_method in no_interval_detrend else interval_list
-
-            for interval in intervals:
-
-                f_detrended, _s_bic_cache = detrend_flux(
-                    detrend_method, time, flux_norm,
-                    interval, _s_bic_cache=_s_bic_cache
-                )
-
-                f_detrended = f_detrended - np.mean(f_detrended)
-
-                # tail cut
-                if cut_tail_len > 0 and len(f_detrended) > 2 * cut_tail_len:
-                    f_detrended_cut = f_detrended[cut_tail_len:-cut_tail_len]
-                    time_cut = time[cut_tail_len:-cut_tail_len]
-                else:
-                    f_detrended_cut = f_detrended
-                    time_cut = time
-
-                key_name = f"{detrend_method}_int{interval}"
-                flux_detrended_dict[key_name] = f_detrended_cut
-
-                # 儲存 CSV
-                combo_dir = f"{output_path}{dir_path}/{detrend_method}"
-                os.makedirs(combo_dir, exist_ok=True)
-
-                out_csv_path = os.path.join(
-                    combo_dir,
-                    f"{target_id}_interval{interval}_{detrend_method}_cut{cut_tail_len}.csv"
-                )
-
-                pd.DataFrame({"TIME": time_cut, "FLUX": f_detrended_cut}).to_csv(out_csv_path, index=False)
-
-                results.append({
+            return {
                     "TIC ID": target_id,
                     "flux_mean": np.nanmean(f_detrended_cut),
                     "flux_min": np.nanmin(f_detrended_cut),
@@ -89,11 +69,31 @@ def main(dir_path, input_csv_dir, output_path, sample_df, detrend_methods=[], cu
                     "interval": interval,
                     "cut_tail": cut_tail_len > 0,
                     "points_num": len(f_detrended_cut)
-                })
+            }
 
+# -------------------------------
+# II. 主程式
+# -------------------------------
+def main(dir_path, input_csv_dir, output_dir, sample_df, detrend_methods=[], cut_tail_len=0):
+
+    tic_list = sample_df["TIC ID"].astype(str).str.zfill(10).tolist()
+    csv_files = [f"{tic}_group_norm.csv" for tic in tic_list]
+    output_path = f"{output_dir}{dir_path}"
+
+    results = []
+
+    # 處理每一筆 sample
+    for idx, csv_name in enumerate(tqdm(csv_files)):
+        csv_path = os.path.join(input_csv_dir, csv_name)
+
+        if not os.path.exists(csv_path):
+            print(f"找不到檔案：{csv_path}，跳過。")
+            continue
+        results.append(preprocess(csv_name, csv_path, output_path))
+        
     # summary
     summary_df = pd.DataFrame(results)
-    summary_df.to_csv(f"{output_path}{dir_path}/preprocess_summary_{dir_path}.csv", index=False)
+    summary_df.to_csv(f"{output_path}/preprocess_summary_{dir_path}.csv", index=False)
     print("\n已處理完 sample_df 的所有 TIC。")
 
 
@@ -109,11 +109,11 @@ if __name__ == "__main__":
     sample_df = filtered_df.sample(n=data_size, random_state=42)
 
     input_csv_dir = "/data2/gigicheng/data_21/raw_data/group_norm/exp1"
-    output_path = "/data2/gigicheng/data_21/raw_data/preprocess/"
+    output_dir = "/data2/gigicheng/data_21/raw_data/preprocess/"
     start_time = datetime.now()
     print(f"開始時間: {start_time}")
 
-    main(dir_path, input_csv_dir, output_path,sample_df, detrend_methods=detrend_methods, cut_tail_len=cut_tail_len)
+    main(dir_path, input_csv_dir, output_dir,sample_df, detrend_methods=detrend_methods, cut_tail_len=cut_tail_len)
 
     end_time = datetime.now()
     print(f"完成時間: {end_time}")

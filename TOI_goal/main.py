@@ -1,6 +1,6 @@
 from datetime import datetime
 from preprocess.group_filter import group_norm
-from preprocess.detrend import detrend_flux
+from preprocess.main import preprocess
 import os
 import pandas as pd
 import numpy as np
@@ -14,68 +14,22 @@ no_interval_detrend = ["org", "linear", "wavelet"]
 cut_tail_len = 30 # by GPFC
 
 def main(input_dir, group_dir, version_dir_path, preprocess_dir):
+    # group
     combo_dir = os.path.join(group_dir, version_dir_path)
-
     for TOI_ID in TOI_to1:
         filepath = f"{input_dir}/tess2020020091053-s0021-000000{TOI_ID}-0167-s_lc.fits"
         group_norm(0, TOI_ID, filepath, group_dir, combo_dir)
-        # detrend
-        df = pd.read_csv(f"{combo_dir}/{TOI_ID}_group_norm.csv")
-        time = df["TIME"].values
-        flux_norm = df["FLUX"].values
-        flux_detrended_dict = {}
-
-        for detrend_method in detrend_methods:
-            intervals = [None] if detrend_method in no_interval_detrend else interval_list
-
-            for interval in intervals:
-
-                f_detrended, _ = detrend_flux(
-                    detrend_method, time, flux_norm,
-                    interval, _s_bic_cache={}
-                )
-
-                f_detrended = f_detrended - np.mean(f_detrended)
-
-                # tail cut
-                if cut_tail_len > 0 and len(f_detrended) > 2 * cut_tail_len:
-                    f_detrended_cut = f_detrended[cut_tail_len:-cut_tail_len]
-                    time_cut = time[cut_tail_len:-cut_tail_len]
-                else:
-                    f_detrended_cut = f_detrended
-                    time_cut = time
-
-                key_name = f"{detrend_method}_int{interval}"
-                flux_detrended_dict[key_name] = f_detrended_cut
-
-                # 儲存 CSV
-                combo_dir = f"/data2/gigicheng/data_21/raw_data/preprocess/{version_dir_path}/{detrend_method}"
-                os.makedirs(combo_dir, exist_ok=True)
-
-                out_csv_path = os.path.join(
-                    combo_dir,
-                    f"{target_id}_interval{interval}_{detrend_method}_cut{cut_tail_len}.csv"
-                )
-
-                pd.DataFrame({"TIME": time_cut, "FLUX": f_detrended_cut}).to_csv(out_csv_path, index=False)
-
-                results.append({
-                    "TIC ID": target_id,
-                    "flux_mean": np.nanmean(f_detrended_cut),
-                    "flux_min": np.nanmin(f_detrended_cut),
-                    "flux_max": np.nanmax(f_detrended_cut),
-                    "flux_std": np.nanstd(f_detrended_cut),
-                    "detrend_way": detrend_method,
-                    "detrend_SNR": (np.nanmean(f_detrended_cut) - np.nanmin(f_detrended_cut)) / np.nanstd(f_detrended_cut),
-                    "interval": interval,
-                    "cut_tail": cut_tail_len > 0,
-                    "points_num": len(f_detrended_cut)
-                })
-
-    # summary
-    summary_df = pd.DataFrame(results)
-    summary_df.to_csv(f"/data2/gigicheng/data_21/raw_data/preprocess/{dir_path}/preprocess_summary_{dir_path}.csv", index=False)
+    
+    # detrend
+    output_path = os.path.join(preprocess_dir, version_dir_path)
+    preprocess_result = []
+    for TOI_ID in TOI_to1:
+        csv_path = os.path.join(group_dir, f"{version_dir_path}/{TOI_ID}_group_norm.csv")
+        preprocess_result.append(preprocess(csv_name=TOI_ID, csv_path=csv_path, output_path=output_path))
+    summary_df = pd.DataFrame(preprocess_result)
+    summary_df.to_csv(f"{output_path}/preprocess_summary.csv", index=False)
     print("\n已處理完 sample_df 的所有 TIC。")
+    
 
 
 if __name__ == "__main__":
