@@ -1,57 +1,38 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-import numpy as np
-import os
-from astropy.io import fits
-import matplotlib
-matplotlib.use("Agg")
-import pandas as pd
-from tqdm import tqdm
 from datetime import datetime
+from preprocess.group_filter import group_norm
 from preprocess.detrend import detrend_flux
-from preprocess.config import detrend_methods, interval_list, no_interval_detrend, cut_tail_len, data_size
+import os
+import pandas as pd
+import numpy as np
 
+TOI_to1 = ["0198457103", "0287225295", "0154867950",
+           "0224600500", "0332064670", "0219742885"]
 
+interval_list = [4500]
+detrend_methods = ["org", "cubic_sample"]
+no_interval_detrend = ["org", "linear", "wavelet"]
+cut_tail_len = 30 # by GPFC
 
-# -------------------------------
-# II. 主程式
-# -------------------------------
-def main(dir_path, input_csv_dir, output_path, sample_df, detrend_methods=[], cut_tail_len=0):
+def main(input_dir, group_dir, version_dir_path, preprocess_dir):
+    combo_dir = os.path.join(group_dir, version_dir_path)
 
-    tic_list = sample_df["TIC ID"].astype(str).str.zfill(10).tolist()
-    csv_files = [f"{tic}_group_norm.csv" for tic in tic_list]
-
-    results = []
-
-    # 處理每一筆 sample
-    for idx, csv_name in enumerate(tqdm(csv_files)):
-
-        csv_path = os.path.join(input_csv_dir, csv_name)
-
-        if not os.path.exists(csv_path):
-            print(f"找不到檔案：{csv_path}，跳過。")
-            continue
-
-        # 讀取該 TIC 的 group_norm CSV
-        df = pd.read_csv(csv_path)
-
+    for TOI_ID in TOI_to1:
+        filepath = f"{input_dir}/tess2020020091053-s0021-000000{TOI_ID}-0167-s_lc.fits"
+        group_norm(0, TOI_ID, filepath, group_dir, combo_dir)
+        # detrend
+        df = pd.read_csv(f"{combo_dir}/{TOI_ID}_group_norm.csv")
         time = df["TIME"].values
         flux_norm = df["FLUX"].values
-        target_id = csv_name.split("_")[0]  # 例如 12345678_group_norm
-
-        # detrend
         flux_detrended_dict = {}
-        _s_bic_cache = {}
 
         for detrend_method in detrend_methods:
             intervals = [None] if detrend_method in no_interval_detrend else interval_list
 
             for interval in intervals:
 
-                f_detrended, _s_bic_cache = detrend_flux(
+                f_detrended, _ = detrend_flux(
                     detrend_method, time, flux_norm,
-                    interval, _s_bic_cache=_s_bic_cache
+                    interval, _s_bic_cache={}
                 )
 
                 f_detrended = f_detrended - np.mean(f_detrended)
@@ -68,7 +49,7 @@ def main(dir_path, input_csv_dir, output_path, sample_df, detrend_methods=[], cu
                 flux_detrended_dict[key_name] = f_detrended_cut
 
                 # 儲存 CSV
-                combo_dir = f"{output_path}{dir_path}/{detrend_method}"
+                combo_dir = f"/data2/gigicheng/data_21/raw_data/preprocess/{version_dir_path}/{detrend_method}"
                 os.makedirs(combo_dir, exist_ok=True)
 
                 out_csv_path = os.path.join(
@@ -93,28 +74,21 @@ def main(dir_path, input_csv_dir, output_path, sample_df, detrend_methods=[], cu
 
     # summary
     summary_df = pd.DataFrame(results)
-    summary_df.to_csv(f"{output_path}{dir_path}/preprocess_summary_{dir_path}.csv", index=False)
+    summary_df.to_csv(f"/data2/gigicheng/data_21/raw_data/preprocess/{dir_path}/preprocess_summary_{dir_path}.csv", index=False)
     print("\n已處理完 sample_df 的所有 TIC。")
 
 
-# -------------------------------
-# III. 主程式入口
-# -------------------------------
 if __name__ == "__main__":
-
-    dir_path = "2000_mean_to_0"
-    input_df = pd.read_csv("/data2/gigicheng/data_21/raw_data/group_norm/group_summary_exp1.csv")
+    version_dir_path = "exp1"
     
-    filtered_df = input_df[input_df["org_flux_std"] < 0.001]
-    sample_df = filtered_df.sample(n=data_size, random_state=42)
+    input_dir = "/data2/gigicheng/TOI_org/data/"
+    group_dir = "/data2/gigicheng/data_21/raw_data/TOI_goal/group_norm"
+    preprocess_dir = "/data2/gigicheng/data_21/raw_data/TOI_goal/preprocess"
 
-    input_csv_dir = "/data2/gigicheng/data_21/raw_data/group_norm/exp1"
-    output_path = "/data2/gigicheng/data_21/raw_data/preprocess/"
     start_time = datetime.now()
     print(f"開始時間: {start_time}")
-
-    main(dir_path, input_csv_dir, output_path,sample_df, detrend_methods=detrend_methods, cut_tail_len=cut_tail_len)
-
+    main(input_dir, group_dir, version_dir_path, preprocess_dir)
+    
     end_time = datetime.now()
     print(f"完成時間: {end_time}")
     print(f"總共耗時: {end_time - start_time}")
