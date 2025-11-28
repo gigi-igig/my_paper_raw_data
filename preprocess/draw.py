@@ -6,7 +6,7 @@ import matplotlib
 matplotlib.use("Agg")  # 非互動式後端
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
-from config import colors
+from .config import colors
 
 # -------------------------------
 # 畫圖函式改寫

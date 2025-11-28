@@ -9,8 +9,8 @@ matplotlib.use("Agg")
 import pandas as pd
 from tqdm import tqdm
 from datetime import datetime
-from preprocess.detrend import detrend_flux
-from preprocess.config import detrend_methods, interval_list, no_interval_detrend, cut_tail_len, data_size
+from .detrend import detrend_flux
+from .config import detrend_methods, interval_list, no_interval_detrend, cut_tail_len, data_size
 
 def preprocess(csv_name, csv_path, output_path):
 
@@ -24,7 +24,8 @@ def preprocess(csv_name, csv_path, output_path):
     # detrend
     flux_detrended_dict = {}
     _s_bic_cache = {}
-
+    all_results = []
+    
     for detrend_method in detrend_methods:
         intervals = [None] if detrend_method in no_interval_detrend else interval_list
 
@@ -58,23 +59,26 @@ def preprocess(csv_name, csv_path, output_path):
             
             pd.DataFrame({"TIME": time_cut, "FLUX": f_detrended_cut}).to_csv(out_csv_path, index=False)
 
-            return {
-                    "TIC ID": target_id,
-                    "flux_mean": np.nanmean(f_detrended_cut),
-                    "flux_min": np.nanmin(f_detrended_cut),
-                    "flux_max": np.nanmax(f_detrended_cut),
-                    "flux_std": np.nanstd(f_detrended_cut),
-                    "detrend_way": detrend_method,
-                    "detrend_SNR": (np.nanmean(f_detrended_cut) - np.nanmin(f_detrended_cut)) / np.nanstd(f_detrended_cut),
-                    "interval": interval,
-                    "cut_tail": cut_tail_len > 0,
-                    "points_num": len(f_detrended_cut)
+            # 累積結果
+            result = {
+                "TIC ID": target_id,
+                "flux_mean": np.nanmean(f_detrended_cut),
+                "flux_min": np.nanmin(f_detrended_cut),
+                "flux_max": np.nanmax(f_detrended_cut),
+                "flux_std": np.nanstd(f_detrended_cut),
+                "detrend_way": detrend_method,
+                "detrend_SNR": (np.nanmean(f_detrended_cut) - np.nanmin(f_detrended_cut)) / np.nanstd(f_detrended_cut),
+                "interval": interval,
+                "cut_tail": cut_tail_len > 0,
+                "points_num": len(f_detrended_cut)
             }
+            all_results.append(result)
+    return all_results
 
 # -------------------------------
 # II. 主程式
 # -------------------------------
-def main(dir_path, input_csv_dir, output_dir, sample_df, detrend_methods=[], cut_tail_len=0):
+def main(dir_path, input_csv_dir, output_dir, sample_df):
 
     tic_list = sample_df["TIC ID"].astype(str).str.zfill(10).tolist()
     csv_files = [f"{tic}_group_norm.csv" for tic in tic_list]
@@ -89,7 +93,7 @@ def main(dir_path, input_csv_dir, output_dir, sample_df, detrend_methods=[], cut
         if not os.path.exists(csv_path):
             print(f"找不到檔案：{csv_path}，跳過。")
             continue
-        results.append(preprocess(csv_name, csv_path, output_path))
+        results.extend(preprocess(csv_name, csv_path, output_path))
         
     # summary
     summary_df = pd.DataFrame(results)
@@ -113,7 +117,7 @@ if __name__ == "__main__":
     start_time = datetime.now()
     print(f"開始時間: {start_time}")
 
-    main(dir_path, input_csv_dir, output_dir,sample_df, detrend_methods=detrend_methods, cut_tail_len=cut_tail_len)
+    main(dir_path, input_csv_dir, output_dir,sample_df)
 
     end_time = datetime.now()
     print(f"完成時間: {end_time}")

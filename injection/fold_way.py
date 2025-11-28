@@ -1,6 +1,6 @@
 import matplotlib
 matplotlib.use("Agg")  # 遠端非互動式後端
-from tool import rm_outliner
+from injection.tool import rm_outliner
 import numpy as np
 import pandas as pd
 

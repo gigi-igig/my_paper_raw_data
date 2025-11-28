@@ -1,8 +1,7 @@
 # tool.py
 import numpy as np
 import pandas as pd
-from mangol import mandel_agol as mangol
-import os
+from .mangol import mandel_agol as mangol
 
 # ---------------------------
 # 1. 移除 outlier

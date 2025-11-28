@@ -4,10 +4,10 @@ import os
 import glob
 import pickle
 from tqdm import tqdm
-from injection.mangol import mandel_agol as mangol
-from injection.fold_way import bin_lightcurve
-from injection.tool import inject, pad_to_npoints, generate_signals, ha_z
-from injection.config import detrend_methods
+from .mangol import mandel_agol as mangol
+from .fold_way import bin_lightcurve
+from .tool import inject, pad_to_npoints, generate_signals, ha_z
+from .config import detrend_methods
 
 
 def main(tic_ids_str, detrend_way, preprocess_root, save_root, tic_ids_signal_dict, target_points, bin_minutes = 10):

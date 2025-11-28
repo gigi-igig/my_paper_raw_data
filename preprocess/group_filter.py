@@ -9,11 +9,9 @@ matplotlib.use("Agg")  # 非互動式後端
 import pandas as pd
 from tqdm import tqdm
 from datetime import datetime
-from preprocess.tool import extract_target_id, dropnan_sort, normalize_by_group
+from .tool import extract_target_id, dropnan_sort, normalize_by_group
 
-def group_norm(idx, fname, file_path, combo_dir):
-    
-    target_id = extract_target_id(fname)
+def group_norm(idx, target_id, file_path, combo_dir):
 
     with fits.open(file_path) as hdul:
         time = hdul[1].data['TIME']
@@ -39,7 +37,7 @@ def group_norm(idx, fname, file_path, combo_dir):
 
     # 儲存 CSV
     csv_path = os.path.join(combo_dir, f"{target_id}_group_norm.csv")
-    os.makedirs(csv_path, exist_ok=True)
+    
     pd.DataFrame({"TIME": time, "FLUX": flux_norm}).to_csv(csv_path, index=False)
 
     return {
@@ -63,10 +61,11 @@ def main(version_dir_path, data_dir, output_dir, data_size=1000):
     
     results = []
     combo_dir = os.path.join(output_dir, version_dir_path)
+    os.makedirs(combo_dir, exist_ok=True)
     for idx, fname in enumerate(tqdm(fits_files)):
         file_path = os.path.join(data_dir, fname)
-        
-        result_dict = group_norm(idx, fname, file_path, combo_dir)
+        target_id = extract_target_id(fname)
+        result_dict = group_norm(idx, target_id, file_path, combo_dir)
         if result_dict == "":
             continue
         else:

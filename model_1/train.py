@@ -7,9 +7,9 @@ import pandas as pd
 import tensorflow as tf
 from tensorflow.keras.callbacks import CSVLogger
 from tensorflow.keras.optimizers import Adam
-from model_1.early_stop import EpochLogger, AccuracyPlateauEarlyStop
-from model_1.tool import Tee
-from model_1.model import CNNClassifier4
+from .early_stop import EpochLogger, AccuracyPlateauEarlyStop
+from .tool import Tee
+from .model import CNNClassifier4
 
 # 固定隨機種子
 SEED = 52
